@@ -46,3 +46,22 @@ jobs:
       - name: Deploy read-only dashboard
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Verify public HTTPS from the hosted runner
+        env:
+          SNAPSHOT: ${{ inputs.snapshot }}
+          PUBLIC_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          node --input-type=module <<'JS'
+          import {gunzipSync} from 'node:zlib';
+          const expected=JSON.parse(gunzipSync(Buffer.from(process.env.SNAPSHOT,'base64')));
+          let good=false;
+          for(let attempt=0;attempt<6;attempt++){
+            const response=await fetch(process.env.PUBLIC_URL+'snapshot.json?t='+Date.now());
+            if(response.ok){const actual=await response.json();if(actual.generated_at===expected.generated_at&&actual.paperOnly===true&&actual.liveMoneyEnabled===false){good=true;break;}}
+            await new Promise(resolve=>setTimeout(resolve,10000));
+          }
+          if(!good)throw new Error('Public snapshot did not update');
+          const html=await fetch(process.env.PUBLIC_URL+'?t='+Date.now()).then(r=>r.text());
+          if(!html.includes('Last updated')||/\/api\/|ALPACA|STEPHEN-CODEX|127\.0\.0\.1|diagnosticsBody/.test(html))throw new Error('Public page smoke test failed');
+          console.log('Public HTTPS snapshot and read-only dashboard verified outside the local machine.');
+          JS
