@@ -1,0 +1,48 @@
+name: Publish read-only Signal snapshot
+on:
+  workflow_dispatch:
+    inputs:
+      snapshot:
+        description: Sanitized compressed display snapshot
+        required: true
+        type: string
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: signal-public-pages
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare safe static artifact
+        env:
+          SNAPSHOT: ${{ inputs.snapshot }}
+        run: |
+          mkdir -p site
+          cp index.html site/index.html
+          touch site/.nojekyll
+          node --input-type=module <<'JS'
+          import {gunzipSync} from 'node:zlib';
+          import fs from 'node:fs';
+          const raw=gunzipSync(Buffer.from(process.env.SNAPSHOT,'base64'),{maxOutputLength:1048576}).toString();
+          const s=JSON.parse(raw);
+          const allowed=['schema_version','generated_at','stale_after_seconds','market_open','data_freshness','date','status','accounts','chart','activity','validity','lastSession','cleanEra','paperOnly','liveMoneyEnabled'];
+          if(Object.keys(s).some(k=>!allowed.includes(k))||s.paperOnly!==true||s.liveMoneyEnabled!==false||s.schema_version!==1||!Number.isFinite(Date.parse(s.generated_at)))throw new Error('Invalid public snapshot');
+          if(/ALPACA|secret|token|password|STEPHEN-CODEX|C:\\\\|database_path|diagnostics|session_id|positionId|signalId/i.test(raw))throw new Error('Unsafe field in public snapshot');
+          fs.writeFileSync('site/snapshot.json',JSON.stringify(s));
+          JS
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+          retention-days: 1
+      - name: Deploy read-only dashboard
+        id: deployment
+        uses: actions/deploy-pages@v4
