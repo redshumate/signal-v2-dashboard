@@ -35,7 +35,7 @@ jobs:
           const s=JSON.parse(raw);
           const allowed=['schema_version','generated_at','stale_after_seconds','market_open','data_freshness','date','status','accounts','chart','activity','validity','lastSession','cleanEra','paperOnly','liveMoneyEnabled'];
           if(Object.keys(s).some(k=>!allowed.includes(k))||s.paperOnly!==true||s.liveMoneyEnabled!==false||s.schema_version!==1||!Number.isFinite(Date.parse(s.generated_at)))throw new Error('Invalid public snapshot');
-          if(/ALPACA|secret|token|password|STEPHEN-CODEX|C:\\\\|database_path|diagnostics|session_id|positionId|signalId/i.test(raw))throw new Error('Unsafe field in public snapshot');
+          if(/ALPACA|secret|token|password|computername|hostname|C:\\\\|database_path|diagnostics|session_id|positionId|signalId/i.test(raw))throw new Error('Unsafe field in public snapshot');
           fs.writeFileSync('site/snapshot.json',JSON.stringify(s));
           JS
       - uses: actions/configure-pages@v5
@@ -62,6 +62,6 @@ jobs:
           }
           if(!good)throw new Error('Public snapshot did not update');
           const html=await fetch(process.env.PUBLIC_URL+'?t='+Date.now()).then(r=>r.text());
-          if(!html.includes('Last updated')||/\/api\/|ALPACA|STEPHEN-CODEX|127\.0\.0\.1|diagnosticsBody/.test(html))throw new Error('Public page smoke test failed');
+          if(!html.includes('Last updated')||/\/api\/|ALPACA|computername|hostname|127\.0\.0\.1|diagnosticsBody/.test(html))throw new Error('Public page smoke test failed');
           console.log('Public HTTPS snapshot and read-only dashboard verified outside the local machine.');
           JS
