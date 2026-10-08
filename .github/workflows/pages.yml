@@ -33,7 +33,7 @@ jobs:
           import fs from 'node:fs';
           const raw=gunzipSync(Buffer.from(process.env.SNAPSHOT,'base64'),{maxOutputLength:1048576}).toString();
           const s=JSON.parse(raw);
-          const allowed=['schema_version','generated_at','stale_after_seconds','market_open','data_freshness','date','status','accounts','chart','activity','validity','lastSession','cleanEra','paperOnly','liveMoneyEnabled'];
+          const allowed=['schema_version','generated_at','stale_after_seconds','market_open','data_freshness','date','status','accounts','chart','activity','validity','lastSession','cleanEra','gTurnShadow','airCurrentShadow','paperOnly','liveMoneyEnabled'];
           if(Object.keys(s).some(k=>!allowed.includes(k))||s.paperOnly!==true||s.liveMoneyEnabled!==false||s.schema_version!==1||!Number.isFinite(Date.parse(s.generated_at)))throw new Error('Invalid public snapshot');
           if(/ALPACA|secret|token|password|computername|hostname|C:\\\\|database_path|diagnostics|session_id|positionId|signalId/i.test(raw))throw new Error('Unsafe field in public snapshot');
           fs.writeFileSync('site/snapshot.json',JSON.stringify(s));
